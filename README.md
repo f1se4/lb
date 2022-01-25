@@ -34,7 +34,9 @@ This is a fork from [Luke's Blog Script](https://github.com/LukeSmithxyz)
 ./lb t(rash)	# Delete a draft of an entry.
 ./lb p(ublish)	# Finalize/publish a blog post draft.
 ./lb d(elete)	# Delete a published blog post.
-./lb r(evise)	# Revise an already published entry (you can republish it with `lb p` when done) --> TODO!!!!
+<-- TODO!!!!
+./lb r(evise)	# Revise an already published entry (you can republish it with `lb p` when done) 
+--> TODO!!!!
 ```
 
 ## Installation
