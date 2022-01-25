@@ -1,9 +1,8 @@
 #!/bin/bash
-name="Luke Smith"
+name="f1se4" # Your name or nickname
 webdir="$PWD"
-website="https://lukesmith.xyz/" # Keep a trailing slash.
-css="../style.css"
-blogfile="$(date +%Y).html"
+website="Your web page here" # Keep a trailing slash.
+css="../style.css" # Use your own
 indexfile="blogindex.html"
 rssfile="rss.xml"
 archivefile="$webdir/blog/.htaccess"
@@ -23,9 +22,9 @@ newpost() { read -erp "Give a title for your post:
 	" title
 	echo "$title" | grep -q "\"" && printf "Double quotation marks (\") are not allowed in entry titles.\\n" && exit
 	url="$(echo "$title" | iconv -cf UTF-8 -t ASCII//TRANSLIT | tr -d '[:punct:]' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed "s/-\+/-/g;s/\(^-\|-\$\)//g")"
-	echo "AddDescription \"$title\" \"$url.html\"" >>  "$archivefile"|| { echo "Error: Is $archivefile writeable?"; exit; }
-	( [ -f "$webdir/blog/.drafts/$url.html" ] || [ -f "$webdir/blog/$url.html" ] ) && echo "There is already an existing draft or post of that same name/URL." && exit
-	$EDITOR "$webdir/blog/.drafts/$url.html" ;}
+	echo "AddDescription \"$title\" \"$url.md\"" >>  "$archivefile"|| { echo "Error: Is $archivefile writeable?"; exit; }
+	( [ -f "$webdir/blog/.drafts/$url.md" ] || [ -f "$webdir/blog/$url.md" ] ) && echo "There is already an existing draft or post of that same name/URL." && exit
+	$EDITOR "$webdir/blog/.drafts/$url.md" ;}
 
 listandReturn() {
 	printf "Listing contents of %s\\n" "$1"
@@ -43,19 +42,32 @@ publish() { \
 	delete draft
 	htaccessentry=$(grep "$basefile" "$archivefile")
 	realname="$(echo "$htaccessentry" | cut -d'"' -f2)"
-	rssdate="$(grep "$basefile" blog/.htaccess | sed "s/.*\.html\"* *#*//g" | tr -d '\n')"
+	rssdate="$(grep "$basefile" blog/.htaccess | sed "s/.*\.md\"* *#*//g" | tr -d '\n')"
 	[ -z "$rssdate" ] && rssdate="$(LC_TIME=en_US date '+%a, %d %b %Y %H:%M:%S %z')" # RSS date formats must comply with standards to validate.
 	webdate="$(date '+%a, %d %b %Y %H:%M:%S %z')" # But this visible date you can set to any format.
 	tmpdir=$(mktemp -d)
-	printf "<!DOCTYPE html>\\n<html lang=\"en\">\\n<head>\\n<title>%s</title>\\n<link rel='stylesheet' type='text/css' href='%s'>\\n<meta charset='utf-8'/>\\n</head>\\n<body>\\n<h1>%s</h1>\\n<small>[<a href='%s#%s'>link</a>&mdash;<a href='%s'>standalone</a>]</small>\\n%s\\n<footer>by <strong><a href='%s'>%s</a></strong></footer>\\n</body>\\n\\n</html>" "$realname" "$css" "$realname" "../$blogfile" "$base" "$basefile" "$(cat "$webdir/blog/.drafts/$basefile")" "$website" "$name" > "$webdir/blog/$basefile"
-	printf "\\n<item>\\n<title>%s</title>\\n<guid>%s%s#%s</guid>\\n<pubDate>%s</pubDate>\\n<description><![CDATA[\\n%s\\n]]></description>\\n</item>\\n\\n" "$realname" "$website" "$blogfile" "$base" "$rssdate" "$(cat "$webdir/blog/.drafts/$basefile")" >  "$tmpdir/rss"
-	printf "<div class='entry'>\\n<h2 id='%s'>%s</h2>\\n<small>[<a href='#%s'>link</a>&mdash;<a href='%s'>standalone</a>]</small>\\n%s\\n<small>%s</small>\\n</div>\\n" "$base" "$realname" "$base" "blog/$basefile" "$(cat "$webdir/blog/.drafts/$basefile")" "$webdate" > "$tmpdir/html"
-	printf "<li>%s &ndash; <a href=\"blog/%s\">%s</a></li>\\n" "$(date '+%Y %b %d')" "$basefile" "$realname" > "$tmpdir/index"
-	sed -i "/<!-- LB -->/r $tmpdir/html" "$blogfile"
+  bbasefile=$(echo ${basefile%.*}".html")
+  pandoctr=$(pandoc -f markdown "$webdir/blog/.drafts/$basefile")
+	printf "<!DOCTYPE html>\\n<html lang=\"en\">\\n<head>\\n<title>%s</title>\\n<link rel='stylesheet' type='text/css' href='%s'>\\n<meta charset='utf-8'/>\\n</head>\\n<body>\\n<br><h1>%s</h1>
+<main>\\n%s\\n<footer>by <strong><a href='%s'>%s</a></strong></footer>\\n</body>\\n\\n</html>" "$realname" "$css" "$realname" "$pandoctr" "$website" "$name" > "$webdir/blog/$bbasefile"
+	printf "\\n<item>\\n<title>%s</title>\\n<guid>%s%s#%s</guid>\\n<pubDate>%s</pubDate>\\n<description><![CDATA[\\n%s\\n]]></description>\\n</item>\\n\\n" "$realname" "$website" "$blogfile" "$base" "$rssdate" "$pandoctr" >  "$tmpdir/rss"
+	printf "<div class='entry'>\\n<h2 id='%s'>%s</h2>\\n<small>[<a href='#%s'>link</a>&mdash;<a href='%s'>standalone</a>]</small>\\n%s\\n<small>%s</small>\\n</div>\\n" "$base" "$realname" "$base" "blog/$bbasefile" "$pandoctr" "$webdate" > "$tmpdir/html"
+	printf "<li class='blog'>%s &ndash; <a href=\"blog/%s\">%s</a></li>\\n" "$(date '+%Y %b %d')" "$bbasefile" "$realname" > "$tmpdir/index"
 	sed -i "/<!-- LB -->/r $tmpdir/rss" "$rssfile"
 	sed -i "/<!-- LB -->/r $tmpdir/index" "$indexfile"
 	sed -i "/ \"$base.html\"/d" "$archivefile"
-	echo "AddDescription \"$realname\" \"$basefile\" #$rssdate" >> "$archivefile"
+	echo "AddDescription \"$realname\" \"$bbasefile\" #$rssdate" >> "$archivefile"
+  sed -i '/md"$/d' ./blog/.htaccess
+  sed -i '/<!--BLOG-->/,/<!--\/BLOG-->/{//!d}' agora.html #clear old list
+  listart=$(tail -n 5 ./blog/.htaccess | awk  -F '"' '{print $4}')
+  #listart=$(tail -n +2 ./blog/.htaccess | head -5 | awk  -F '"' '{print $4}' | awk '{a[i++]=$0} END {for (j=i-1; j>=0;) print a[j--] }')
+  for value in $listart 
+  do 
+    i="$(stat ./blog/$value | grep Birth | awk -F ' ' {'print $2'})"
+    title="$(cat ./blog/$value | sed -n 's/<title>//p' | sed -n 's/<\/title>//p')"
+    line="$(printf "<li class='blog'>%s &ndash; <a href=\"blog/%s\">%s</a></li>\\n" "$i" "$value" "$title")"
+    sed -i "/<!--BLOG-->/a $line" agora.html
+  done 
 	rm -f "$webdir/blog/.drafts/$chosen"
 }
 
@@ -63,8 +75,7 @@ confirm() { read -erp "Really $1 \"$base\"? (y/N) " choice && echo "$choice" | g
 
 delete() { \
 	sed -i "/<item/{:a;N;/<\\/item>/!ba};/#$base<\\/guid/d" "$rssfile"
-	sed -i "/<div class='entry'>/{:a;N;/<\\/div>/!ba};/id='$base'/d" "$blogfile"
-	sed -i "/<li>.*<a href=\"blog\\/$base.html\">/d" "$indexfile"
+	sed -i "/<li class='blog'>.*<a href=\"blog\\/$base.html\">/d" "$indexfile"
 	rm -f "$webdir/blog/$basefile" && [[ "$1" != "draft" ]] && printf "Old blog entry removed.\\n";}
 
 revise() { awk '/^<small>\[/{flag=1;next}/<footer>/{flag=0}flag' "$webdir/blog/$chosen" > "$webdir/blog/.drafts/$basefile"
@@ -76,7 +87,7 @@ case "$1" in
 	e*) listandReturn "$webdir"/blog/.drafts/ edit && "$EDITOR" "$webdir/blog/.drafts/$chosen" ;;
 	p*) listandReturn "$webdir"/blog/.drafts/ publish && publish ;;
 	t*) listandReturn "$webdir"/blog/.drafts/ trash && confirm trash && rm -f "$webdir/blog/.drafts/$chosen" && sed -i "/ \"$base.html\"/d" "$archivefile" ; printf "Draft deleted.\\n" ;;
-	d*) listandReturn "$webdir"/blog/ delete && confirm delete && delete && sed -i "/ \"$base.html\"/d" "$archivefile" ;;
+	d*) listandReturn "$webdir"/blog/ delete && confirm delete && delete && sed -i "/ \"$base.md\"/d" "$archivefile" ;;
 	r*) listandReturn "$webdir"/blog/ revise && revise ;;
-	*) printf "lb blog system by Luke Smith <luke@lukesmith.xyz>\\nUsage:\\n  lb n:\\tnew draft\\n  lb e:\\tedit draft\\n  lb p:\\tpublish/finalize draft\\n  lb r:\\trevise published entry\\n  lb t:\\tdiscard draft\\n  lb d:\\tdelete published entry\\n\\nBe sure to have the following pattern added to your RSS feed, blog file and blog index:\\n\\n<!-- LB -->\\n\\nNew content will be added directly below that sequence. This is required.\\nSee https://github.com/LukeSmithxyz/lb for more.\\n" ;;
+	*) printf "lb blog system by Luke Smith <luke@lukesmith.xyz> and extended by f1se4 with personal template and markdown flow.\\n\\n**Important** pandoc is required\\n      'sudo apt install pandoc' in debian based systems\\n\\nUsage:\\n  lb n:\\tnew draft\\n  lb e:\\tedit draft\\n  lb p:\\tpublish/finalize draft\\n  lb r:\\trevise published entry\\n  lb t:\\tdiscard draft\\n  lb d:\\tdelete published entry\\n\\nBe sure to have the following pattern added to your RSS feed, blog file and blog index:\\n\\n<!-- LB -->\\n\\nNew content will be added directly below that sequence. This is required.\\nSee https://github.com/LukeSmithxyz/lb for more.\\n" ;;
 esac
